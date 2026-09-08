@@ -2,6 +2,69 @@
 
 Status: first build scaffold started.
 
+## Current MVP
+
+The current build includes a Next.js user interface and a FastAPI profile service.
+
+- Resume upload accepts PDF and TXT files and extracts readable text with `pypdf`.
+- The profile service finds declared technical skills, project signals, and topic candidates.
+- A public GitHub username is enriched through GitHub's public API, returning repository count and languages.
+- The ranking API produces GitHub, research, and engineering recommendations from profile topics, with a confidence score and an explicit reason for every signal.
+- The RAG API retrieves the most relevant technical documents for a user question and returns a grounded answer together with the source links it used.
+- The dashboard lets users filter signals, save items, and inspect the explanation behind a recommendation.
+
+### Run locally
+
+Start the website:
+
+```bash
+npm install
+npm run dev -- -H 127.0.0.1 -p 5173
+```
+
+Start the profile service in a separate terminal:
+
+```bash
+python -m pip install -r backend/requirements.txt
+cd backend
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+
+For the production-shaped local stack, use Docker Compose. It defines the web app, FastAPI service, PostgreSQL with pgvector, and Redis:
+
+```bash
+docker compose up --build
+```
+
+### RAG design
+
+The MVP has a working retrieval-augmented answer path:
+
+```text
+Resume / GitHub / chosen interests
+        ↓
+Profile skills, project text, and topics
+        ↓
+Retrieve matching technical documents
+        ↓
+Rank by retrieval similarity + source credibility
+        ↓
+Grounded answer with explicit source links
+```
+
+For local development, retrieval uses a dependency-free hashed-token cosine
+baseline. It keeps the app runnable without an embedding API key. The document
+shape and retrieval interface are designed to be replaced by production
+embeddings stored in PostgreSQL + pgvector; that is the deployment path for
+semantic matching at scale.
+
+Run the backend tests:
+
+```bash
+cd backend
+python -m unittest discover -s tests
+```
+
 > A deeply personalized, tech-only intelligence feed for people who want to know what matters in technology — not what is merely popular.
 
 SignalStack brings together technical research, GitHub activity, release notes, engineering blogs, trusted tech reporting, and approved developer-community signals. It filters that information into a high-confidence feed based on each user's technical interests, tools, and areas of work.

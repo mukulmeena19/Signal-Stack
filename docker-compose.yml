@@ -1,0 +1,25 @@
+services:
+  web:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      PROFILE_API_URL: http://profile-api:8000
+    depends_on:
+      - profile-api
+  profile-api:
+    build: ./backend
+    ports:
+      - "8000:8000"
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: signalstack
+      POSTGRES_PASSWORD: signalstack_dev_password
+      POSTGRES_DB: signalstack
+    ports:
+      - "5432:5432"
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
