@@ -6,6 +6,9 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pypdf import PdfReader
 from .rag import answer_question, retrieve_briefing
+from .corpus import DOCUMENTS
+from .ingestion import arxiv_documents, github_documents
+from .store import get_documents, get_profile, initialize, upsert_documents, upsert_profile
 
 app = FastAPI(title="SignalStack Profile API", version="0.1.0")
 app.add_middleware(
@@ -14,6 +17,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.on_event("startup")
+def startup() -> None:
+    initialize()
+    if not get_documents():
+        upsert_documents(DOCUMENTS)
 
 SKILLS = {
     "Python", "JavaScript", "TypeScript", "React", "Next.js", "FastAPI",
@@ -64,7 +73,7 @@ def health() -> dict:
 def briefing(payload: dict) -> dict:
     if not isinstance(payload.get("topics", []), list):
         raise HTTPException(status_code=422, detail="topics must be a list.")
-    return retrieve_briefing(payload)
+    return retrieve_briefing(payload, documents=get_documents())
 
 
 @app.post("/rag/ask")
@@ -75,7 +84,36 @@ def rag_ask(payload: dict) -> dict:
     profile = payload.get("profile", {})
     if not isinstance(profile, dict):
         raise HTTPException(status_code=422, detail="profile must be an object.")
-    return answer_question(profile, question)
+    return answer_question(profile, question, documents=get_documents())
+
+
+@app.put("/profiles/{profile_id}")
+def save_profile(profile_id: str, payload: dict) -> dict:
+    return upsert_profile(profile_id, payload)
+
+
+@app.get("/profiles/{profile_id}")
+def read_profile(profile_id: str) -> dict:
+    profile = get_profile(profile_id)
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found.")
+    return profile
+
+
+@app.post("/ingest/refresh")
+def refresh_sources(payload: dict) -> dict:
+    topics = [str(topic).strip() for topic in payload.get("topics", []) if str(topic).strip()][:3]
+    if not topics:
+        raise HTTPException(status_code=422, detail="Provide at least one topic.")
+    documents = []
+    errors = []
+    for topic in topics:
+        for name, loader in (("GitHub", github_documents), ("arXiv", arxiv_documents)):
+            try:
+                documents.extend(loader(topic))
+            except Exception:
+                errors.append(f"{name} could not be refreshed for {topic}.")
+    return {"ingested": upsert_documents(documents) if documents else 0, "errors": errors}
 
 
 @app.post("/profile/resume")

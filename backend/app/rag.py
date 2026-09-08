@@ -20,9 +20,9 @@ def grounded_answer(question: str, matches: list[dict]) -> str:
     return f"Your briefing was built from the most relevant retrieved sources: {titles}."
 
 
-def retrieve_briefing(profile: dict, limit: int = 8) -> dict:
+def retrieve_briefing(profile: dict, limit: int = 8, documents: list[dict] | None = None) -> dict:
     query = build_query(profile)
-    matches = retrieve(query, DOCUMENTS, limit)
+    matches = retrieve(query, documents or DOCUMENTS, limit)
     signals = []
     normalized = {str(topic).lower() for topic in profile.get("topics", []) + profile.get("skills", [])}
     for match in matches:
@@ -38,9 +38,9 @@ def retrieve_briefing(profile: dict, limit: int = 8) -> dict:
     return {"query": query, "signals": signals, "answer": grounded_answer("", matches)}
 
 
-def answer_question(profile: dict, question: str) -> dict:
+def answer_question(profile: dict, question: str, documents: list[dict] | None = None) -> dict:
     query = build_query(profile, question)
-    matches = retrieve(query, DOCUMENTS, 4)
+    matches = retrieve(query, documents or DOCUMENTS, 4)
     return {
         "answer": grounded_answer(question, matches),
         "sources": [{"id": item["id"], "title": item["title"], "source": item["source"], "url": item["url"], "score": item["retrieval_score"]} for item in matches],

@@ -11,6 +11,8 @@ The current build includes a Next.js user interface and a FastAPI profile servic
 - A public GitHub username is enriched through GitHub's public API, returning repository count and languages.
 - The ranking API produces GitHub, research, and engineering recommendations from profile topics, with a confidence score and an explicit reason for every signal.
 - The RAG API retrieves the most relevant technical documents for a user question and returns a grounded answer together with the source links it used.
+- Profiles and ingested documents persist locally in SQLite for the MVP; Docker Compose provides the PostgreSQL + pgvector upgrade path.
+- `POST /ingest/refresh` retrieves public GitHub repository results and arXiv papers for up to three technical topics and stores them for later briefing and RAG retrieval.
 - The dashboard lets users filter signals, save items, and inspect the explanation behind a recommendation.
 
 ### Run locally
@@ -64,6 +66,23 @@ Run the backend tests:
 cd backend
 python -m unittest discover -s tests
 ```
+
+### API operations
+
+```text
+POST /profile/resume      Analyze a PDF/TXT resume
+PUT  /profiles/{id}       Persist a user's extracted skills, projects, and topics
+GET  /profiles/{id}       Read a persisted profile
+POST /ingest/refresh      Fetch current public GitHub and arXiv source documents
+POST /briefing            Retrieve a relevance-ranked technical briefing
+POST /rag/ask             Ask a grounded question and receive source citations
+```
+
+The ingestion endpoint intentionally reports provider failures per source rather
+than failing the whole request. GitHub's public API is rate-limited when no user
+token is configured; a production deployment should use a server-side GitHub
+token and add scheduled workers, retry policies, and source-specific terms of
+use handling.
 
 > A deeply personalized, tech-only intelligence feed for people who want to know what matters in technology — not what is merely popular.
 
