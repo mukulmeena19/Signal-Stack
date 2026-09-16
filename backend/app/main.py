@@ -4,6 +4,10 @@ import re
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+try:
+    from docx import Document
+except ImportError:  # Optional in the lightweight local test environment.
+    Document = None
 from pypdf import PdfReader
 from .rag import answer_question, retrieve_briefing
 from .corpus import DOCUMENTS
@@ -13,7 +17,7 @@ from .store import get_documents, get_profile, initialize, upsert_documents, ups
 app = FastAPI(title="SignalStack Profile API", version="0.1.0")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://127.0.0.1:5173", "http://localhost:5173"],
+    allow_origins=["http://127.0.0.1:5173", "http://localhost:5173", "http://127.0.0.1:3000", "http://localhost:3000"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -38,6 +42,13 @@ PROJECT_HEADINGS = ("project", "experience", "internship", "work experience")
 def extract_pdf_text(data: bytes) -> str:
     reader = PdfReader(BytesIO(data))
     return "\n".join(page.extract_text() or "" for page in reader.pages).strip()
+
+
+def extract_docx_text(data: bytes) -> str:
+    if Document is None:
+        raise RuntimeError("python-docx is required for DOCX resume extraction")
+    document = Document(BytesIO(data))
+    return "\n".join(paragraph.text for paragraph in document.paragraphs if paragraph.text.strip()).strip()
 
 
 def analyze_resume(text: str) -> dict:
@@ -118,13 +129,21 @@ def refresh_sources(payload: dict) -> dict:
 
 @app.post("/profile/resume")
 async def profile_resume(file: UploadFile = File(...)) -> dict:
-    if file.content_type not in {"application/pdf", "text/plain"}:
-        raise HTTPException(status_code=415, detail="Upload a PDF or plain-text resume.")
+    allowed_types = {"application/pdf", "text/plain", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"}
+    allowed_suffixes = {".pdf", ".txt", ".docx"}
+    suffix = (file.filename or "").lower()
+    if file.content_type not in allowed_types and not any(suffix.endswith(item) for item in allowed_suffixes):
+        raise HTTPException(status_code=415, detail="Upload a PDF, DOCX, or plain-text resume.")
     data = await file.read()
     if len(data) > 5 * 1024 * 1024:
         raise HTTPException(status_code=413, detail="Resume must be 5 MB or smaller.")
     try:
-        text = data.decode("utf-8", errors="ignore") if file.content_type == "text/plain" else extract_pdf_text(data)
+        if file.content_type == "text/plain" or suffix.endswith(".txt"):
+            text = data.decode("utf-8", errors="ignore")
+        elif file.content_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document" or suffix.endswith(".docx"):
+            text = extract_docx_text(data)
+        else:
+            text = extract_pdf_text(data)
     except Exception as error:
         raise HTTPException(status_code=422, detail="The resume could not be read.") from error
     if not text:

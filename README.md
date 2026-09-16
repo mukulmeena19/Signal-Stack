@@ -1,6 +1,6 @@
 # SignalStack
 
-Status: first build scaffold started.
+> **Status: functional local MVP.** Resume analysis, GitHub enrichment, persistent profiles, public-source ingestion, technical retrieval, and grounded source-backed answers are implemented and verified locally.
 
 ## Current MVP
 
@@ -13,7 +13,22 @@ The current build includes a Next.js user interface and a FastAPI profile servic
 - The RAG API retrieves the most relevant technical documents for a user question and returns a grounded answer together with the source links it used.
 - Profiles and ingested documents persist locally in SQLite for the MVP; Docker Compose provides the PostgreSQL + pgvector upgrade path.
 - `POST /ingest/refresh` retrieves public GitHub repository results and arXiv papers for up to three technical topics and stores them for later briefing and RAG retrieval.
-- The dashboard lets users filter signals, save items, and inspect the explanation behind a recommendation.
+- The dashboard lets users filter signals, save items, inspect recommendation explanations, and ask a grounded technical question.
+
+### Verified final check
+
+| Check | Result |
+|---|---|
+| Resume analysis | PDF/TXT extraction and technical skill/project detection implemented |
+| GitHub enrichment | Public profile, repository count, and language detection implemented |
+| Profile persistence | SQLite create/read flow verified |
+| Live source ingestion | Public GitHub and arXiv refresh verified; 16 documents ingested in the final check |
+| RAG flow | Retrieval plus source-backed answer endpoint verified |
+| Backend tests | 3/3 tests passing |
+
+### What this MVP is not yet
+
+This repository is deliberately honest about its current boundary. It is not a deployed commercial SaaS yet: it has no authentication, cloud file storage, scheduled production workers, hosted PostgreSQL/pgvector data, or production embedding/LLM credentials. Those are deployment and scale upgrades, listed in the roadmap below, rather than missing local MVP features.
 
 ### Run locally
 
@@ -32,7 +47,7 @@ cd backend
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-For the production-shaped local stack, use Docker Compose. It defines the web app, FastAPI service, PostgreSQL with pgvector, and Redis:
+For the production-shaped local stack, use Docker Compose. It defines the web app, FastAPI service, and PostgreSQL with pgvector:
 
 ```bash
 docker compose up --build
@@ -356,7 +371,6 @@ Clicks are weak signals. Stronger signals include saving, following, dismissing,
 | Database | PostgreSQL | Users, preferences, sources, items, saved collections, feedback |
 | Vector search | pgvector | Meaning-based retrieval and similarity matching |
 | Background workers | Python workers | Source ingestion, paper parsing, enrichment, scheduled jobs |
-| Queue | Redis + a Python task queue | Reliable retries, rate limiting, and long-running work |
 | Object storage | S3-compatible storage | Permitted snapshots, images, and generated assets |
 | AI services | LLM + embedding provider | Structured extraction, summaries, similarity vectors, explanations |
 | Observability | Error monitoring + metrics + tracing | Reliability, queue health, source failures, ranking evaluation |
@@ -378,7 +392,6 @@ This is the stack I would treat as the confirmed project stack for your resume:
 - Python
 - PostgreSQL
 - pgvector
-- Redis
 - Docker
 - GitHub APIs
 - RSS/Atom feeds
@@ -552,4 +565,18 @@ Follow research, GitHub, releases, engineering stories, and trusted technical ne
 
 ## Project status
 
-This repository is the starting point for SignalStack. The immediate goal is an MVP that users can trust: a highly relevant, tech-only feed built from a small number of strong sources, transparent explanations, and continuous feedback.
+SignalStack is a functional local MVP. The user journey works end to end:
+
+```text
+Resume + GitHub + technical interests
+             ↓
+Editable technical profile stored locally
+             ↓
+Live GitHub and arXiv source ingestion
+             ↓
+Personalized retrieval and source-quality ranking
+             ↓
+Briefing cards and grounded answers with source links
+```
+
+The next milestone is production deployment: authentication, secure upload storage, scheduled ingestion, PostgreSQL + pgvector persistence, true embedding models, and observability.

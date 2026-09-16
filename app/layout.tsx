@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SignalStack",
-  description:
-    "A tech-only personalized intelligence website that surfaces the updates that actually matter."
+  title: "SignalStack — technical signal, not noise",
+  description: "A private, source-backed technical briefing shaped by your work.",
+  icons: { icon: "/favicon.svg" }
 };
 
 export default function RootLayout({
